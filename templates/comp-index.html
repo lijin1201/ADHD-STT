@@ -1,0 +1,77 @@
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <title>Multi Transcriber</title>
+    </head>
+    <body>
+        <h2>Audio Transcription Comparison</h2>
+        <table border="1">
+            <thead>
+                <tr><th>File / Action</th><th>Server 1</th><th>Server 2</th></tr>
+            </thead>
+            <tbody>{{file_list_html | safe}}</tbody>
+        </table>
+
+        <script>
+            const server1WS = new WebSocket("ws://localhost:10181/ws/adhd");
+            const server2WS = new WebSocket("ws://localhost:10181/ws/general");
+
+            function sendToBothServers(audioBlob, rowEl) {
+                const readers = [new FileReader(), new FileReader()];
+
+                readers.forEach((reader, idx) => {
+                    reader.onload = () => {
+                        const arrayBuffer = reader.result;
+                        if (idx === 0) server1WS.send(arrayBuffer);
+                        if (idx === 1) server2WS.send(arrayBuffer);
+                    };
+                    reader.readAsArrayBuffer(audioBlob);
+                });
+
+                server1WS.onmessage = (e) => rowEl.querySelector(".server1-result").textContent = e.data;
+                server2WS.onmessage = (e) => rowEl.querySelector(".server2-result").textContent = e.data;
+            }
+
+            async function fetchAndSendAudio(file, rowEl) {
+                const response = await fetch(`/static/audios/${file}`);
+                const blob = await response.blob();
+                const audio = new Audio(URL.createObjectURL(blob));
+                audio.play();
+                sendToBothServers(blob, rowEl);
+            }
+
+            async function recordAndSend(rowEl) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                let chunks = [];
+
+                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    sendToBothServers(blob, rowEl);
+                };
+
+                mediaRecorder.start();
+                setTimeout(() => mediaRecorder.stop(), 3000);
+            }
+
+            document.addEventListener("DOMContentLoaded", () => {
+                document.querySelectorAll(".playBtn").forEach(btn => {
+                    btn.addEventListener("click", (e) => {
+                        const row = e.target.closest("tr");
+                        const file = row.getAttribute("data-file");
+                        fetchAndSendAudio(file, row);
+                    });
+                });
+
+                document.querySelectorAll(".recordBtn").forEach(btn => {
+                    btn.addEventListener("click", (e) => {
+                        const row = e.target.closest("tr");
+                        recordAndSend(row);
+                    });
+                });
+            });
+        </script>
+    </body>
+    </html>

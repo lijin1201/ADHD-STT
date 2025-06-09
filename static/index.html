@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Speech Transcriber</title>
+</head>
+<body>
+    <h1>음성 인식 데모</h1>
+    <button id="startBtn">시작</button>
+    <p id="status"></p>
+    <div id="transcripts"></div>
+
+    <script>
+        const startBtn = document.getElementById("startBtn");
+        const statusEl = document.getElementById("status");
+        const transcriptsEl = document.getElementById("transcripts");
+        const host = 'localhost:10181';
+        const serverUrl = `ws://${host}/ws/adhd`; // Change if needed
+        // socket = new WebSocket(`ws://${host}/ws`);
+
+        let socket;
+        let mediaRecorder;
+        let chunks = [];
+
+        async function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function connectWebSocket() {
+            return new Promise((resolve, reject) => {
+                socket = new WebSocket(serverUrl);
+
+                socket.onopen = () => {
+                    console.log("WebSocket connected");
+                    resolve(socket);
+                };
+
+                socket.onerror = (err) => {
+                    console.error("WebSocket error", err);
+                    reject(err);
+                };
+
+                socket.onclose = () => {
+                    console.log("WebSocket closed");
+                };
+            });
+        }
+
+        async function recordAndSendAudio(duration = 3000) {
+            return new Promise(async (resolve, reject) => {
+                chunks = [];
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    chunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: 'audio/wav' });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    socket.send(arrayBuffer);
+
+                    socket.onmessage = (event) => {
+                        resolve(event.data);
+                    };
+                };
+
+                mediaRecorder.start();
+                await delay(duration);
+                mediaRecorder.stop();
+            });
+        }
+
+        startBtn.addEventListener("click", async () => {
+            startBtn.disabled = true;
+
+            await connectWebSocket();
+
+            for (let i = 0; i < 2; i++) {
+                statusEl.textContent = "녹음 준비";
+                await delay(2000);
+
+                statusEl.textContent = "녹음 중";
+                const transcript = await recordAndSendAudio(3000);
+
+                const p = document.createElement("p");
+                p.textContent = `[${i+1}차] 인식 결과: ${transcript}`;
+                transcriptsEl.appendChild(p);
+            }
+
+            socket.close();
+            statusEl.textContent = "완료";
+            startBtn.disabled = false;
+        });
+    </script>
+</body>
+</html>
