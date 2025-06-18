@@ -5,7 +5,8 @@
     </head>
     <body>
         <h2>Audio Transcription Comparison</h2>
-        <div id="status">Connecting...</div>
+        <div id="status1">Server 1 Connecting...</div>
+        <div id="status2">Server 2 Connecting...</div>
         <table border="1">
             <thead>
                 <tr><th>File / Action</th><th>Server 1</th><th>Server 2</th></tr>
@@ -16,61 +17,66 @@
         <script>
             // const server1WS = new WebSocket("ws://localhost:10181/ws/adhd");
             // const server2WS = new WebSocket("ws://localhost:10181/ws/general");
-            const serverIPs = ['localhost:11181', '192.168.3.19:11181'];
-            const statusElem = document.getElementById('status');
+            // 'ws://localhost:10281'
+            const serverIPs = ['wss://localhost:11181', 'wss://192.168.3.19:11181'];
+            // const serverIPs = ['ws://localhost:10181', 'wss://192.168.3.19:10181'];
+            const statusEleml = [document.getElementById('status1'), document.getElementById('status2')];
             let server1WS = null;
-            // let server2WS = null;
-            let resolved = false;
-            const sockets = [];
+            let server2WS = null;
+            let resolvedl = [false, false];
+            const sockets = [[],[]];
             const TIMEOUT_MS = 5000;
 
             const timeout = setTimeout(() => {
-                if (!resolved) {
-                    // resolved = true;
-                    // Close all sockets still trying
-                    sockets.forEach(ws => {
-                        if (ws.readyState === WebSocket.CONNECTING) ws.close();
-                    });
-                    statusElem.textContent = 'Failed to connect wss server';
-                }
+                statusEleml.forEach((statusElem,idx) => {
+                    if (!resolvedl[idx]) {
+                        // resolved = true;
+                        // Close all sockets still trying
+                        sockets[idx].forEach(ws => {
+                            if (ws.readyState === WebSocket.CONNECTING) ws.close();
+                        });
+                        statusElem.textContent = 'Failed to connect wss server ' + (idx+1);
+                    }
+                });
             }, TIMEOUT_MS);
 
             serverIPs.forEach((url, idx) => {
-                const ws = new WebSocket('wss://' + url + '/ws/adhd');
-                sockets.push(ws);
+                const ws1 = new WebSocket( url + '/ws/adhd');
+                const ws2 = new WebSocket( url + '/ws/general');
+                sockets[0].push(ws1);
+                sockets[1].push(ws2);
 
-                ws.onopen = () => {
-                    if (!resolved) {
-                        resolved = true;
-                        server1WS = ws;
-                        // Close the other socket if it's still connecting
-                        sockets.forEach((otherWs, otherIdx) => {
-                            if (otherIdx !== idx && otherWs.readyState === WebSocket.CONNECTING) {
-                                otherWs.close();
-                            }
-                        });
-                        // console.log(`Connected to ${url}`);
-                        statusElem.textContent = `Connected: ${ws.url}`;
-                        // Proceed using chosenSocket
+                [ws1,ws2].forEach((ws,idx) => {
+                    ws.onopen = () => {
+                        if (!resolvedl[idx]) {
+                            resolvedl[idx] = true;
+                            if (idx==0) { server1WS = ws;}
+                            else if (idx==1) { server2WS = ws;}
+                            // Close the other socket if it's still connecting
+                            sockets[idx].forEach((otherWs, otherIdx) => {
+                                if (otherIdx !== idx && otherWs.readyState === WebSocket.CONNECTING) {
+                                // if (otherIdx !== idx ) {
+                                    otherWs.close();
+                                }
+                            });
+                            // console.log(`Connected to ${url}`);
+                            statusEleml[idx].textContent = `Server ${idx+1} Connected: ${ws.url}`;
+                            // Proceed using chosenSocket
+                        }
                     }
-                };
+                
+                    ws.onerror = (err) => {
+                    };
 
-                ws.onerror = (err) => {
-                    // // Optionally handle error
-                    // if (!resolved && sockets.every(s => s.readyState !== WebSocket.OPEN && s.readyState !== WebSocket.CONNECTING)) {
-                    // // All connections failed
-                    // console.error('All WebSocket servers are unreachable.');
-                    // }
-                };
-
-                ws.onclose = () => {
-                    // Optionally handle close
-                };
+                    ws.onclose = () => {
+                        // Optionally handle close
+                    };
+                });
             });
 
             // const server1WS = new WebSocket("wss://localhost:11181/ws/adhd");
             // const server1WS = chosenSocket;
-            const server2WS = new WebSocket("wss://localhost:11181/ws/general");
+            // const server2WS = new WebSocket("wss://localhost:11181/ws/general");
 
             function sendToBothServers(audioBlob, rowEl) {
                 const readers = [new FileReader(), new FileReader()];

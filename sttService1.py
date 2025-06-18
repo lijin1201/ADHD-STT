@@ -33,10 +33,10 @@ def createSuppressTokenList(words_to_remain, language="ko"):
     return block_tokens
 
 # Define allowed Korean words
-korean_words = ["전혀그렇지않다", "1번","일번","1전","일전",
-                "약간그렇다", "2번","이번","2전","이전",
-                "꽤그렇다","3번","삼번","3전","삼전",
-                "아주많이그렇다","4번","사번","4전","사전",
+korean_words = ["전혀 그렇지 않다", "1번","일번","1전","일전",
+                "약간 그렇다", "2번","이번","2전","이전",
+                "꽤 그렇다","3번","삼번","3전","삼전",
+                "아주 많이 그렇다","4번","사번","4전","사전",
                 ]
 
 block_tokens = createSuppressTokenList(korean_words, language="ko")

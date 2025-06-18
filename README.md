@@ -11,3 +11,8 @@ Running method:
 ```
 uvicorn sttService1:app --reload --host 0.0.0.0 --port PORT
 ```
+
+Audio Testing Example for two server routes `/ws/adhd` and `/ws/general` :
+```
+uvicorn compSTT1:app --reload --host 0.0.0.0 --port PORT
+```
